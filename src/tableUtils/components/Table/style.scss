@@ -1,0 +1,19 @@
+.label-tooltip-table {
+    display:flex;
+    flex-direction: row;
+    justify-content:center;
+    align-items: center
+  }
+  .table-tooltip-first {
+    cursor: pointer;
+    padding: 6px 13px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px
+  }
+  .table-tooltip {
+    cursor: pointer;
+    padding: 6px 13px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin-left: 10px,
+  }
