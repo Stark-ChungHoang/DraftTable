@@ -1,6 +1,7 @@
-import { useCallback, useRef,useState } from "react";
+import { useCallback, useEffect, useRef,useState } from "react";
 import { Editor, SyntheticKeyboardEvent } from "react-draft-wysiwyg";
 import {
+  AtomicBlockUtils,
   ContentBlock,
   ContentState,
   DefaultDraftBlockRenderMap,
@@ -21,6 +22,7 @@ import "antd/dist/reset.css";
 import "draft-js/dist/Draft.css";
 import "react-draft-wysiwyg/dist/react-draft-wysiwyg.css";
 import "./App.scss";
+import { TABLETYPE } from "./constant";
 
 
 const customBlockRenderMap = Map(blockRenderMap);
@@ -30,6 +32,7 @@ const extendedBlockRenderMap =
 function App() {
   const editor = useRef(null);
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
+  const [readOnly,setReadOnly] = useState(false)
 
   const isTable =
     editorState
@@ -63,101 +66,31 @@ function App() {
 
   //insert table
   const insertTable = (size: { cols: number; rows: number }) => {
-    let selection = editorState.getSelection();
+    const contentState = editorState.getCurrentContent();
 
-    if (!selection.isCollapsed()) {
-      return null;
-    }
-    // prevent insert a table within a table
-    if (
-      editorState
-        .getCurrentContent()
-        .getBlockForKey(selection.getAnchorKey())
-        .getType() === "table"
-    ) {
-      return null;
-    }
-
-    const defaultCellStyle = {
-      border: "1px solid rgba(0, 0, 0, 0.2)",
-      padding: "6px 10px",
-      height: 36,
-      "text-align": "center",
-      background: "#FAFAFA",
-    };
-    const cols = Array(20).fill(1);
-    const tableShape: any = Array(20)
-      .fill(cols)
-      .map((row) =>
-        row.map(() => ({ element: "td", style: { ...defaultCellStyle } }))
-      );
-
-    const tableKey = genKey();
-
-    const newBlocks = [];
-    tableShape.forEach((row: any, i: number) => {
-      row.forEach((cell: any, j: number) => {
-        let data = Map({
-          tableKey,
-          tablePosition: `${tableKey}-${i}-${j}`,
-          "text-align": "center",
-        });
-        if (i === 0 && j === 0) {
-          data = data
-            .set("tableShape", tableShape)
-            .set("tableStyle", {
-              "border-collapse": "collapse",
-              margin: "15px 0",
-            } as any)
-            .set("tableSize", { rows: size.rows, cols: size.cols } as any)
-            .set("rowStyle", [] as any);
-        }
-        const newBlock = new ContentBlock({
-          key: genKey(),
-          type: "table",
-          text: " ",
-          data,
-        });
-
-        newBlocks.push(newBlock);
-      });
-    });
-    const selectionKey = selection.getAnchorKey();
-    let contentState = editorState.getCurrentContent();
-
-    contentState = Modifier.splitBlock(contentState, selection);
-    const blockArray = contentState.getBlocksAsArray();
-
-    const currBlock = contentState.getBlockForKey(selectionKey);
-    const index = blockArray.findIndex((block) => block === currBlock);
-    const isEnd = index === blockArray.length - 1;
-
-    if (blockArray[index]?.getType() === "table") {
-      newBlocks.unshift(new ContentBlock({ key: genKey() }));
-    }
-
-    if (blockArray[index + 1]?.getType() === "table") {
-      newBlocks.push(new ContentBlock({ key: genKey() }));
-    }
-    blockArray.splice(index + 1, 0, ...newBlocks);
-    if (isEnd) {
-      blockArray.push(new ContentBlock({ key: genKey() }));
-    }
-
-    const entityMap = contentState.getEntityMap();
-
-    contentState = ContentState.createFromBlockArray(blockArray, entityMap);
-
-    let newEditorState = EditorState.push(
-      editorState,
-      contentState,
-      "insert-fragment"
+    const columnsMapped = Array.from({ length: size.cols }).map((_, i) => ({
+      key: `Column${i}`,
+      value: `Column ${i + 1}`,
+    }));
+  
+    const rowsMapped = Array.from({ length: size.rows }).map((_, i) => ({
+      key: `Row${i}`,
+      value: Array.from({ length: size.cols }).map((__, j) => ({
+        key: `Row${i}Cell${j}`,
+        value: `Cell ${j}`,
+      })),
+    }));
+  
+    const contentStateWithEntity = contentState.createEntity(
+     TABLETYPE,
+      'IMMUTABLE',
+      { columns: columnsMapped, rows: rowsMapped }
     );
-
-    const key = newBlocks[0].getKey();
-    selection = SelectionState.createEmpty(key);
-    newEditorState = EditorState.acceptSelection(newEditorState, selection);
-    onChange(newEditorState);
+    const entityKey = contentStateWithEntity.getLastCreatedEntityKey();
+   
+    const res = AtomicBlockUtils.insertAtomicBlock(editorState, entityKey, ' ');
+    onChange(res)
+      
   };
 
 
@@ -213,14 +146,20 @@ function App() {
     }
     return "not-handled";
   };
-
-  const blockRendererFn = getBlockRendererFn(editor?.current!);
-
+  const getEditorState = () => {
+    return editorState;
+  };
+  const blockRendererFn = getBlockRendererFn(editor?.current!, getEditorState, onChange,setReadOnly);
+  useEffect(() => {
+    console.log("read",readOnly)
+  },[readOnly])
   return (
     <Editor
       ref={editor}
       //@ts-ignore
+      
       blockRendererFn={blockRendererFn}
+      readOnly={readOnly}
       editorState={editorState}
       blockRenderMap={extendedBlockRenderMap}
       spellCheck={true}

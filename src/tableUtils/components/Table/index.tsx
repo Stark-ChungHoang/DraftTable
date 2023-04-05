@@ -5,35 +5,24 @@ import {
   InsertRowBelowOutlined,
 } from "@ant-design/icons";
 import { Dropdown, Tooltip } from "antd";
-import { EditorBlock } from "draft-js";
+import { EditorBlock, EditorState } from "draft-js";
 import { Map } from "immutable";
 import { camelCase } from "lodash";
 import { Key, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Editor, SyntheticKeyboardEvent } from "react-draft-wysiwyg";
 import "./style.scss";
 export const Table = (props: any) => {
   const {
     block,
     blockProps: { editor },
   } = props;
-
+  const [editorState, setEditorState] = useState(EditorState.createEmpty());
   if (
     block.getData().get("tablePosition") &&
     !block.getData().get("tableShape")
   ) {
-    const position = block.getData().get("tablePosition");
-
-    const target = editor?.editor.editor.querySelector(
-      `[data-position='${position}']`
-    );
-    if (target) {
-      return createPortal(<EditorBlock {...props} />, target);
-    }
-    /**
-     * If we get here then the target wasn't in the DOM yet. The reset and paste/insert-related
-     * functions use blur() and focus() to trigger a rerender, at which time the DOM will have been
-     * updated with the framework of the table structure.
-     */
+  
     return null;
   }
 
@@ -96,7 +85,9 @@ export const Table = (props: any) => {
     setCurrentCol(currentCol - 1);
     setTableShape(table);
   };
-
+const onChange = (editorState:any) => {
+  setEditorState(editorState);
+};
   const insertRow = () => {
     const currentRow = tableShape?.length;
     let rowAdded = dataTableShape[currentRow - 1];
@@ -212,9 +203,14 @@ export const Table = (props: any) => {
                             rowSpan={cell.rowspan}
                             data-position={`${tableKey}-${i}-${j}`}
                           >
-                            {!!(i === 0 && j === 0) && (
-                              <EditorBlock {...props} />
-                            )}
+                           <Editor
+          editorState={editorState}
+          
+     
+        />
+                             
+                             
+                            
                           </td>
                         );
                       }

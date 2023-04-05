@@ -11,7 +11,6 @@ const TableGrid = ({handleSubmit}:any) => {
   };
 
   const handleSelect = () => {
-    console.log("soize",size);
     handleSubmit(size);
 
   };
